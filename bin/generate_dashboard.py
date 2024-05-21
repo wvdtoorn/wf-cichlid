@@ -34,7 +34,6 @@ python generate_dashboard.py per_read_stats.tsv
 def generate_dashboard(
     per_read_stats_tsv: str,
     dashboard_closed_file: str = "dashboard_closed",
-    export_plots_path: str = "export_plots",
     mid_threshold: int = 5000,
     long_threshold: int = 10000,
 ):
@@ -51,8 +50,6 @@ def generate_dashboard(
     -------
     None
     """
-
-    os.makedirs(export_plots_path, exist_ok=True)
 
     app = Dash(__name__)
     df = pd.read_csv(
@@ -96,17 +93,24 @@ def generate_dashboard(
                         style={"textAlign": "right"},
                     ),
                     html.Div(
-                        html.Button(
-                            "Export Plots",
-                            id="export-button",
-                            n_clicks=0,
-                            style={
-                                "color": "white",
-                                "background-color": "blue",
-                                "font-size": "20px",
-                                "padding": "10px 20px",
-                            },
-                        ),
+                        [
+                            dcc.Input(
+                                id="save-plot-dir-input",
+                                type="text",
+                                placeholder="Enter path to plot directory",
+                            ),
+                            html.Button(
+                                "Export Plots",
+                                id="export-button",
+                                n_clicks=0,
+                                style={
+                                    "color": "white",
+                                    "background-color": "blue",
+                                    "font-size": "20px",
+                                    "padding": "10px 20px",
+                                },
+                            ),
+                        ],
                         style={"textAlign": "right"},
                     ),
                 ]
@@ -374,13 +378,14 @@ def generate_dashboard(
         return no_update
 
     @app.callback(
-        Output("export-button", "n_clicks"),  # Dummy output
+        Output("export-button", "children"),
         [Input("export-button", "n_clicks")],
         [
             State("scatter-plot-read-length-qscore", "figure"),
             State("violin-plot-qscore-read-length", "figure"),
             State("violin-plot-read-length", "figure"),
             State("sample-dropdown", "value"),
+            State("save-plot-dir-input", "value"),
         ],
         prevent_initial_call=True,
     )
@@ -390,8 +395,20 @@ def generate_dashboard(
         violin_qscore_read_length_fig,
         violin_read_length_fig,
         selected_samples,
+        save_path,
     ):
         if n_clicks:
+            if not save_path:
+                return html.Div(
+                    [
+                        dcc.ConfirmDialog(
+                            displayed=True,
+                            message="No save path provided, skipping export.",
+                        ),
+                        "Export Plots",  # Maintain the original button text
+                    ]
+                )
+
             selected_samples_str = (
                 "_".join(selected_samples) if selected_samples else "all_samples"
             )
@@ -404,19 +421,26 @@ def generate_dashboard(
             violin_read_length_path = (
                 f"{selected_samples_str}--read_length_violin_plot.png"
             )
-            write_image(
-                scatter_qscore_read_length_fig,
-                os.path.join(export_plots_path, scatter_qscore_read_length_path),
-            )
-            write_image(
-                violin_qscore_read_length_fig,
-                os.path.join(export_plots_path, violin_qscore_read_length_path),
-            )
-            write_image(
-                violin_read_length_fig,
-                os.path.join(export_plots_path, violin_read_length_path),
-            )
-        return None
+
+            os.makedirs(save_path, exist_ok=True)
+
+            try:
+                write_image(
+                    scatter_qscore_read_length_fig,
+                    os.path.join(save_path, scatter_qscore_read_length_path),
+                )
+                write_image(
+                    violin_qscore_read_length_fig,
+                    os.path.join(save_path, violin_qscore_read_length_path),
+                )
+                write_image(
+                    violin_read_length_fig,
+                    os.path.join(save_path, violin_read_length_path),
+                )
+            except Exception as e:
+                print(f"Failed to save plot images: {e}")
+
+        return "Export Plots"  # Always return the original button text
 
     @app.callback(
         Output("export-read-ids-button", "n_clicks"),  # Dummy output

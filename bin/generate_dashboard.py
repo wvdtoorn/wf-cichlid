@@ -22,7 +22,11 @@ python generate_dashboard.py per_read_stats.tsv
 def generate_dashboard(per_read_stats_tsv):
 
     app = Dash(__name__)
-    df = pd.read_csv(per_read_stats_tsv, sep="\t")
+    df = pd.read_csv(
+        per_read_stats_tsv,
+        sep="\t",
+        compression="gzip",
+    )
 
     # rename columns
     df = df.rename(

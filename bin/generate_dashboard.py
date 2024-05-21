@@ -149,6 +149,20 @@ def generate_dashboard(
             html.Details(
                 [
                     html.Summary("Data Table for Scatterplot"),
+                    html.Div(
+                        [
+                            dcc.Input(
+                                id="save-path-input",
+                                type="text",
+                                placeholder="Enter save path here",
+                            ),
+                            html.Button(
+                                "Export Read IDs",
+                                id="export-read-ids-button",
+                                n_clicks=0,
+                            ),
+                        ]
+                    ),
                     dash_table.DataTable(
                         id="filtered-data-table",
                         columns=[{"name": i, "id": i} for i in df.columns],
@@ -402,6 +416,25 @@ def generate_dashboard(
                 violin_read_length_fig,
                 os.path.join(export_plots_path, violin_read_length_path),
             )
+        return None
+
+    @app.callback(
+        Output("export-read-ids-button", "n_clicks"),  # Dummy output
+        [Input("export-read-ids-button", "n_clicks")],
+        [
+            State("overview-table", "derived_virtual_data"),
+            State("save-path-input", "value"),
+        ],
+        prevent_initial_call=True,
+    )
+    def export_read_ids(n_clicks, rows, save_path):
+        if n_clicks > 0 and save_path:
+            read_ids = [row["read_id"] for row in rows] if rows else []
+            try:
+                with open(save_path, "w") as file:
+                    file.write("\n".join(read_ids))
+            except Exception as e:
+                print(f"Error writing to file: {e}")
         return None
 
     @app.callback(

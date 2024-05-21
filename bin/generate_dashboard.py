@@ -1,3 +1,4 @@
+import os
 import sys
 import pandas as pd
 import plotly.express as px
@@ -12,6 +13,7 @@ from dash import (
     no_update,
     State,
 )
+from plotly.io import write_image
 
 """
 This script generates a dashboard from a TSV file.
@@ -32,8 +34,9 @@ python generate_dashboard.py per_read_stats.tsv
 def generate_dashboard(
     per_read_stats_tsv: str,
     dashboard_closed_file: str = "dashboard_closed",
-    mid_threshold: int = 500,
-    long_threshold: int = 1000,
+    export_plots_path: str = "export_plots",
+    mid_threshold: int = 5000,
+    long_threshold: int = 10000,
 ):
     """Generate an interactive dashboard from a TSV file containing per-read statistics.
 
@@ -48,6 +51,8 @@ def generate_dashboard(
     -------
     None
     """
+
+    os.makedirs(export_plots_path, exist_ok=True)
 
     app = Dash(__name__)
     df = pd.read_csv(
@@ -76,17 +81,35 @@ def generate_dashboard(
     app.layout = html.Div(
         [
             html.Div(
-                html.Button(
-                    "Close Dashboard",
-                    id="close-button",
-                    style={
-                        "color": "white",
-                        "background-color": "red",
-                        "font-size": "20px",
-                        "padding": "10px 20px",
-                    },
-                ),
-                style={"textAlign": "right"},
+                [
+                    html.Div(
+                        html.Button(
+                            "Close Dashboard",
+                            id="close-button",
+                            style={
+                                "color": "white",
+                                "background-color": "red",
+                                "font-size": "20px",
+                                "padding": "10px 20px",
+                            },
+                        ),
+                        style={"textAlign": "right"},
+                    ),
+                    html.Div(
+                        html.Button(
+                            "Export Plots",
+                            id="export-button",
+                            n_clicks=0,
+                            style={
+                                "color": "white",
+                                "background-color": "blue",
+                                "font-size": "20px",
+                                "padding": "10px 20px",
+                            },
+                        ),
+                        style={"textAlign": "right"},
+                    ),
+                ]
             ),
             html.Details(
                 [
@@ -111,7 +134,7 @@ def generate_dashboard(
             html.Button("Select All", id="select-all-button", n_clicks=0),
             html.Button("Deselect All", id="deselect-all-button", n_clicks=0),
             dcc.Graph(
-                id="scatter-plot",
+                id="scatter-plot-read-length-qscore",
                 figure=px.scatter(
                     df,
                     x="Read Length",
@@ -164,7 +187,7 @@ def generate_dashboard(
                 },
             ),
             dcc.Graph(
-                id="violin-plot",
+                id="violin-plot-qscore-read-length",
                 figure=px.violin(
                     df,
                     x="sample_name",
@@ -173,20 +196,37 @@ def generate_dashboard(
                     color_discrete_map=color_map,
                     facet_row="Read Length Category",  # Facet into rows based on read length categories
                     title="Quality Score over Read Length by Sample",
+                    points="all",
+                    box=True,
+                ),
+            ),
+            dcc.Graph(
+                id="violin-plot-read-length",
+                figure=px.violin(
+                    df,
+                    x="sample_name",
+                    y="Read Length",
+                    color="sample_name",
+                    color_discrete_map=color_map,
+                    title="Read Length by Sample",
+                    points="all",
+                    box=True,
                 ),
             ),
         ]
     )
 
     @app.callback(
-        Output("violin-plot", "figure"),
+        Output("violin-plot-qscore-read-length", "figure"),
         [
             Input("mid-threshold", "value"),
             Input("long-threshold", "value"),
             Input("sample-dropdown", "value"),
         ],
     )
-    def update_violin_plot(mid_threshold, long_threshold, selected_samples):
+    def update_violin_plot_qscore_read_length(
+        mid_threshold, long_threshold, selected_samples
+    ):
         if not selected_samples:
             return px.violin()
 
@@ -213,6 +253,8 @@ def generate_dashboard(
             facet_row="Read Length Category",
             title="Quality Score over Read Length by Sample",
             height=plot_height,
+            points="all",
+            box=True,
         )
 
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].strip()))
@@ -221,7 +263,10 @@ def generate_dashboard(
 
         return fig
 
-    @app.callback(Output("scatter-plot", "figure"), [Input("sample-dropdown", "value")])
+    @app.callback(
+        Output("scatter-plot-read-length-qscore", "figure"),
+        [Input("sample-dropdown", "value")],
+    )
     def update_graph(selected_samples):
         filtered_df = df[df["sample_name"].isin(selected_samples)]
         return px.scatter(
@@ -239,8 +284,8 @@ def generate_dashboard(
         Output("filtered-data-table", "data"),
         [
             Input("sample-dropdown", "value"),
-            Input("scatter-plot", "relayoutData"),
-            Input("scatter-plot", "selectedData"),
+            Input("scatter-plot-read-length-qscore", "relayoutData"),
+            Input("scatter-plot-read-length-qscore", "selectedData"),
         ],
     )
     def update_filtered_table(selected_samples, relayoutData, selectedData):
@@ -294,6 +339,51 @@ def generate_dashboard(
         elif button_id == "deselect-all-button":
             return []
         return no_update
+
+    @app.callback(
+        Output("export-button", "n_clicks"),  # Dummy output
+        [Input("export-button", "n_clicks")],
+        [
+            State("scatter-plot-read-length-qscore", "figure"),
+            State("violin-plot-qscore-read-length", "figure"),
+            State("violin-plot-read-length", "figure"),
+            State("sample-dropdown", "value"),
+        ],
+        prevent_initial_call=True,
+    )
+    def export_results(
+        n_clicks,
+        scatter_qscore_read_length_fig,
+        violin_qscore_read_length_fig,
+        violin_read_length_fig,
+        selected_samples,
+    ):
+        if n_clicks:
+            selected_samples_str = (
+                "_".join(selected_samples) if selected_samples else "all_samples"
+            )
+            scatter_qscore_read_length_path = (
+                f"{selected_samples_str}--qscore_read_length_scatter_plot.png"
+            )
+            violin_qscore_read_length_path = (
+                f"{selected_samples_str}--qscore_read_length_violin_plot.png"
+            )
+            violin_read_length_path = (
+                f"{selected_samples_str}--read_length_violin_plot.png"
+            )
+            write_image(
+                scatter_qscore_read_length_fig,
+                os.path.join(export_plots_path, scatter_qscore_read_length_path),
+            )
+            write_image(
+                violin_qscore_read_length_fig,
+                os.path.join(export_plots_path, violin_qscore_read_length_path),
+            )
+            write_image(
+                violin_read_length_fig,
+                os.path.join(export_plots_path, violin_read_length_path),
+            )
+        return None
 
     @app.callback(
         Output("close-button", "n_clicks"),  # Dummy output

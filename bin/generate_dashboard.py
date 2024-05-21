@@ -265,10 +265,29 @@ def generate_dashboard(
 
     @app.callback(
         Output("scatter-plot-read-length-qscore", "figure"),
-        [Input("sample-dropdown", "value")],
+        [
+            Input("sample-dropdown", "value"),
+            Input("scatter-plot-read-length-qscore", "relayoutData"),
+        ],
     )
-    def update_graph(selected_samples):
+    def update_graph(selected_samples, relayoutData):
         filtered_df = df[df["sample_name"].isin(selected_samples)]
+
+        # Check if there is zoom data in relayoutData
+        if (
+            relayoutData
+            and "xaxis.range[0]" in relayoutData
+            and "yaxis.range[0]" in relayoutData
+        ):
+            x0, x1 = relayoutData["xaxis.range[0]"], relayoutData["xaxis.range[1]"]
+            y0, y1 = relayoutData["yaxis.range[0]"], relayoutData["yaxis.range[1]"]
+            filtered_df = filtered_df[
+                (filtered_df["Read Length"] >= x0)
+                & (filtered_df["Read Length"] <= x1)
+                & (filtered_df["Average QScore"] >= y0)
+                & (filtered_df["Average QScore"] <= y1)
+            ]
+
         return px.scatter(
             filtered_df,
             x="Read Length",

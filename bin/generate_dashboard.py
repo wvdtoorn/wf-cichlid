@@ -443,7 +443,7 @@ def generate_dashboard(
         return "Export Plots"  # Always return the original button text
 
     @app.callback(
-        Output("export-read-ids-button", "n_clicks"),  # Dummy output
+        Output("export-read-ids-button", "children"),
         [Input("export-read-ids-button", "n_clicks")],
         [
             State("overview-table", "derived_virtual_data"),
@@ -452,14 +452,27 @@ def generate_dashboard(
         prevent_initial_call=True,
     )
     def export_read_ids(n_clicks, rows, save_path):
-        if n_clicks > 0 and save_path:
+        if n_clicks > 0:
+            if not save_path:
+                return html.Div(
+                    [
+                        dcc.ConfirmDialog(
+                            displayed=True,
+                            message="No save path provided, skipping export.",
+                        ),
+                        "Export Read IDs",  # Maintain the original button text
+                    ]
+                )
+
             read_ids = [row["read_id"] for row in rows] if rows else []
             try:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 with open(save_path, "w") as file:
                     file.write("\n".join(read_ids))
             except Exception as e:
                 print(f"Error writing to file: {e}")
-        return None
+
+        return "Export Read IDs"  # Always return the original button text
 
     @app.callback(
         Output("close-button", "n_clicks"),  # Dummy output

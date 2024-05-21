@@ -108,6 +108,8 @@ def generate_dashboard(
                 value=df["sample_name"].unique().tolist(),
                 multi=True,
             ),
+            html.Button("Select All", id="select-all-button", n_clicks=0),
+            html.Button("Deselect All", id="deselect-all-button", n_clicks=0),
             dcc.Graph(
                 id="scatter-plot",
                 figure=px.scatter(
@@ -262,6 +264,25 @@ def generate_dashboard(
         # TODO: implement this
 
         return filtered_df.to_dict("records")
+
+    @app.callback(
+        Output("sample-dropdown", "value"),
+        [
+            Input("select-all-button", "n_clicks"),
+            Input("deselect-all-button", "n_clicks"),
+        ],
+        [State("sample-dropdown", "options")],
+    )
+    def update_dropdown(select_all_clicks, deselect_all_clicks, options):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if button_id == "select-all-button":
+            return [option["value"] for option in options]
+        elif button_id == "deselect-all-button":
+            return []
+        return no_update
 
     @app.callback(
         Output("close-button", "n_clicks"),  # Dummy output

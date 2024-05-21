@@ -35,6 +35,19 @@ def generate_dashboard(per_read_stats_tsv):
 
     app.layout = html.Div(
         [
+            html.Div(
+                html.Button(
+                    "Close Dashboard",
+                    id="close-button",
+                    style={
+                        "color": "white",
+                        "background-color": "red",
+                        "font-size": "20px",
+                        "padding": "10px 20px",
+                    },
+                ),
+                style={"textAlign": "right"},
+            ),
             html.H3("Overview Table"),
             dash_table.DataTable(
                 id="overview-table",
@@ -125,6 +138,15 @@ def generate_dashboard(per_read_stats_tsv):
 
         return filtered_df.to_dict("records")
 
+    @app.callback(
+        Output("close-button", "n_clicks"),  # Dummy output
+        [Input("close-button", "n_clicks")],
+    )
+    def close_dashboard(n_clicks):
+        if n_clicks:
+            with open(dashboard_closed_file, "w") as file:
+                file.write("Dashboard was closed at: " + str(pd.Timestamp.now()))
+        return None
 
     app.run_server(debug=True)
 

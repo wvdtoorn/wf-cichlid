@@ -95,6 +95,22 @@ process plotly {
     """
 }
 
+// Concat per-read-stats csv
+process concatPerReadStats {
+    label "wftemplate"
+    input:
+        path "?_stats.tsv.gz"
+    output:
+        path "per-read-stats_all.tsv"
+    """
+    # Get header from the first CSV file
+    zcat *_stats.tsv.gz | head -n 1 > per-read-stats_all.tsv
+
+    # Concatenate the rest of the files without their headers
+    zcat *_stats.tsv.gz | tail -q -n +2 >> per-read-stats_all.tsv
+    """
+}
+
 // Creates a new directory named after the sample alias and moves the ingress results
 // into it.
 process collectIngressResultsInDir {
@@ -218,7 +234,8 @@ workflow {
     }
  
     stats_file = samples.map{ meta, reads, stats ->  stats.resolve("per-read-stats.tsv.gz") }
-    stats_file.collect().view()
+    stats_file.collect()
+    stats_file.view()
 
 
     // group back the possible multiple fastqs from the chunking. In
@@ -250,6 +267,7 @@ workflow {
             pipeline.out.report.concat(pipeline.out.workflow_params)
                 | map { [it, null] })
         | output
+    concatPerReadStats(stats_file)
 }
 
 workflow.onComplete {

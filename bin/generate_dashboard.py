@@ -1,7 +1,7 @@
 import sys
 import pandas as pd
 import plotly.express as px
-from dash import Dash, dcc, html, Input, Output, dash_table
+from dash import Dash, dcc, html, Input, Output, dash_table, callback_context
 
 """
 This script generates a dashboard from a TSV file.
@@ -35,6 +35,16 @@ def generate_dashboard(per_read_stats_tsv):
 
     app.layout = html.Div(
         [
+            html.H3("Overview Table"),
+            dash_table.DataTable(
+                id="overview-table",
+                columns=[{"name": i, "id": i} for i in df.columns],
+                data=df.to_dict("records"),
+                sort_action="native",
+                sort_mode="multi",
+                filter_action="native",  # Enable filtering
+            ),
+            html.H3("Interactive Analysis"),
             dcc.Dropdown(
                 id="sample-dropdown",
                 options=[{"label": i, "value": i} for i in df["sample_name"].unique()],
@@ -51,12 +61,13 @@ def generate_dashboard(per_read_stats_tsv):
                     title="Quality Score over Read Length",
                 ),
             ),
+            html.H4("Data Table for Selected Samples"),
             dash_table.DataTable(
-                id="data-table",
+                id="filtered-data-table",
                 columns=[{"name": i, "id": i} for i in df.columns],
-                data=df.to_dict("records"),
-                sort_action="native",  # Enable sorting
-                sort_mode="multi",  # Allow multi-column sorting
+                data=df.to_dict("records"),  # Initially show all data
+                sort_action="native",
+                sort_mode="multi",
             ),
         ]
     )
@@ -72,13 +83,48 @@ def generate_dashboard(per_read_stats_tsv):
             title="Quality Score over Read Length",
         )
 
-    @app.callback(Output("data-table", "data"), Input("scatter-plot", "selectedData"))
-    def display_selected_data(selectedData):
-        if selectedData:
-            indices = [point["pointIndex"] for point in selectedData["points"]]
-            filtered_df = df.iloc[indices]
-            return filtered_df.to_dict("records")
-        return df.to_dict("records")
+    @app.callback(
+        Output("filtered-data-table", "data"),
+        [
+            Input("sample-dropdown", "value"),
+            Input("scatter-plot", "relayoutData"),
+            Input("scatter-plot", "selectedData"),
+        ],
+    )
+    def update_filtered_table(selected_samples, relayoutData, selectedData):
+
+        # Filter DataFrame based on selected samples from the dropdown
+        filtered_df = df[df["sample_name"].isin(selected_samples)]
+
+        # Check if the callback was triggered by a change in the dropdown
+        if (
+            callback_context.triggered
+            and callback_context.triggered[0]["prop_id"] == "sample-dropdown.value"
+        ):
+            # Reset any zoom filtering as the plot zooms out
+            relayoutData = None
+
+        # Apply zoom filtering if zoom level changes are detected in relayoutData
+        if relayoutData:
+            if "xaxis.range[0]" in relayoutData and "xaxis.range[1]" in relayoutData:
+                x0, x1 = relayoutData["xaxis.range[0]"], relayoutData["xaxis.range[1]"]
+                filtered_df = filtered_df[
+                    (filtered_df["Read Length"] >= x0)
+                    & (filtered_df["Read Length"] <= x1)
+                ]
+
+            if "yaxis.range[0]" in relayoutData and "yaxis.range[1]" in relayoutData:
+                y0, y1 = relayoutData["yaxis.range[0]"], relayoutData["yaxis.range[1]"]
+                filtered_df = filtered_df[
+                    (filtered_df["Average QScore"] >= y0)
+                    & (filtered_df["Average QScore"] <= y1)
+                ]
+
+        # Apply filtering based on selected hue labels in the scatter plot
+        # TODO: implement this
+
+        return filtered_df.to_dict("records")
+
 
     app.run_server(debug=True)
 

@@ -89,7 +89,7 @@ process plotly {
     input:
         path "all.stats"
     """
-    python /home/dksnka/workspaces/lc2024/wf-cichlid/bin/generate_dashboard.py all.stats
+    python ${projectDir}/bin/generate_dashboard.py all.stats
     """
 }
 

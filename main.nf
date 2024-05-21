@@ -83,6 +83,18 @@ process output {
     """
 }
 
+
+process plotly {
+    label "wftemplate"
+    input:
+        tuple path(fname), val(dirname)
+    output:
+        path fname
+    """
+
+    """
+}
+
 // Creates a new directory named after the sample alias and moves the ingress results
 // into it.
 process collectIngressResultsInDir {
@@ -91,7 +103,7 @@ process collectIngressResultsInDir {
         // both inputs might be `OPTIONAL_FILE` --> stage in different sub-directories
         // to avoid name collisions
         tuple val(meta),
-            path(reads, stageAs: "reads/*"),
+            path(reads, stageAs: "reads/{?}_stats"),
             path(index, stageAs: "index/*"),
             path(stats, stageAs: "stats/*")
     output:
@@ -204,6 +216,10 @@ workflow {
             "per_read_stats": params.wf.per_read_stats
         ])
     }
+ 
+    stats_file = samples.map{ meta, reads, stats ->  stats.resolve("per-read-stats.tsv.gz") }
+    stats_file.collect().view()
+
 
     // group back the possible multiple fastqs from the chunking. In
     // a "real" workflow this wouldn't be done immediately here and

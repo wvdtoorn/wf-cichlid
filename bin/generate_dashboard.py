@@ -1,7 +1,17 @@
 import sys
 import pandas as pd
 import plotly.express as px
-from dash import Dash, dcc, html, Input, Output, dash_table, callback_context
+from dash import (
+    Dash,
+    dcc,
+    html,
+    Input,
+    Output,
+    dash_table,
+    callback_context,
+    no_update,
+    State,
+)
 
 """
 This script generates a dashboard from a TSV file.
@@ -20,7 +30,10 @@ python generate_dashboard.py per_read_stats.tsv
 
 
 def generate_dashboard(
-    per_read_stats_tsv: str, dashboard_closed_file: str = "dashboard_closed"
+    per_read_stats_tsv: str,
+    dashboard_closed_file: str = "dashboard_closed",
+    mid_threshold: int = 500,
+    long_threshold: int = 1000,
 ):
     """Generate an interactive dashboard from a TSV file containing per-read statistics.
 
@@ -53,6 +66,12 @@ def generate_dashboard(
     colors = px.colors.qualitative.Plotly  # Using Plotly's qualitative color scale
     color_map = {name: colors[i % len(colors)] for i, name in enumerate(sample_names)}
 
+    # Define categories for read length
+    df["Read Length Category"] = pd.cut(
+        df["Read Length"],
+        bins=[0, mid_threshold, long_threshold, float("inf")],
+        labels=["short", "mid", "long"],
+    )
 
     app.layout = html.Div(
         [
@@ -114,8 +133,80 @@ def generate_dashboard(
                     ),
                 ]
             ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Label("Mid Read Length Threshold:"),
+                            dcc.Input(
+                                id="mid-threshold", type="number", value=mid_threshold
+                            ),
+                        ],
+                        style={"padding": "10px"},
+                    ),
+                    html.Div(
+                        [
+                            html.Label("Long Read Length Threshold:"),
+                            dcc.Input(
+                                id="long-threshold", type="number", value=long_threshold
+                            ),
+                        ],
+                        style={"padding": "10px"},
+                    ),
+                ],
+                style={
+                    "padding": "20px",
+                    "max-width": "400px",
+                    "display": "flex",
+                    "flexDirection": "column",
+                },
+            ),
+            dcc.Graph(
+                id="violin-plot",
+                figure=px.violin(
+                    df,
+                    x="sample_name",
+                    y="Average QScore",
+                    color="sample_name",
+                    color_discrete_map=color_map,
+                    facet_row="Read Length Category",  # Facet into rows based on read length categories
+                    title="Quality Score over Read Length by Sample",
+                ),
+            ),
         ]
     )
+
+    @app.callback(
+        Output("violin-plot", "figure"),
+        [
+            Input("mid-threshold", "value"),
+            Input("long-threshold", "value"),
+            Input("sample-dropdown", "value"),
+        ],
+    )
+    def update_violin_plot(mid_threshold, long_threshold, selected_samples):
+        if not selected_samples:
+            return px.violin()
+
+        # Filter DataFrame based on selected samples
+        filtered_df = df[df["sample_name"].isin(selected_samples)]
+
+        # Update the DataFrame with new thresholds for read length categories
+        filtered_df["Read Length Category"] = pd.cut(
+            filtered_df["Read Length"],
+            bins=[0, mid_threshold, long_threshold, float("inf")],
+            labels=["short", "mid", "long"],
+        )
+
+        return px.violin(
+            filtered_df,
+            x="sample_name",
+            y="Average QScore",
+            color="sample_name",
+            color_discrete_map=color_map,
+            facet_row="Read Length Category",
+            title="Quality Score over Read Length by Sample",
+        )
 
     @app.callback(Output("scatter-plot", "figure"), [Input("sample-dropdown", "value")])
     def update_graph(selected_samples):
@@ -140,7 +231,6 @@ def generate_dashboard(
         ],
     )
     def update_filtered_table(selected_samples, relayoutData, selectedData):
-
         # Filter DataFrame based on selected samples from the dropdown
         filtered_df = df[df["sample_name"].isin(selected_samples)]
 

@@ -98,6 +98,8 @@ def generate_dashboard(
                     color="sample_name",
                     color_discrete_map=color_map,
                     title="Quality Score over Read Length",
+                    marginal_x="histogram",
+                    marginal_y="histogram",
                 ),
             ),
             html.Details(
@@ -125,8 +127,8 @@ def generate_dashboard(
             color="sample_name",
             color_discrete_map=color_map,
             title="Quality Score over Read Length",
-            marginal_x="histogram",  # Histogram on x-axis
-            marginal_y="histogram",  # Histogram on y-axis
+            marginal_x="histogram",
+            marginal_y="histogram",
         )
 
     @app.callback(

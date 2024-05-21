@@ -70,7 +70,7 @@ def generate_dashboard(
     df["Read Length Category"] = pd.cut(
         df["Read Length"],
         bins=[0, mid_threshold, long_threshold, float("inf")],
-        labels=["short", "mid", "long"],
+        labels=["short reads", "mid reads", "long reads"],
     )
 
     app.layout = html.Div(
@@ -197,10 +197,14 @@ def generate_dashboard(
         filtered_df["Read Length Category"] = pd.cut(
             filtered_df["Read Length"],
             bins=[0, mid_threshold, long_threshold, float("inf")],
-            labels=["short", "mid", "long"],
+            labels=["short reads", "mid reads", "long reads"],
         )
 
-        return px.violin(
+        # Calculate the number of unique categories for setting plot height
+        num_categories = len(filtered_df["Read Length Category"].unique())
+        plot_height = max(300, 200 * num_categories)
+
+        fig = px.violin(
             filtered_df,
             x="sample_name",
             y="Average QScore",
@@ -208,7 +212,14 @@ def generate_dashboard(
             color_discrete_map=color_map,
             facet_row="Read Length Category",
             title="Quality Score over Read Length by Sample",
+            height=plot_height,
         )
+
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].strip()))
+
+        fig.update_layout(margin=dict(l=40, r=40, t=40, b=80))
+
+        return fig
 
     @app.callback(Output("scatter-plot", "figure"), [Input("sample-dropdown", "value")])
     def update_graph(selected_samples):

@@ -19,7 +19,22 @@ python generate_dashboard.py per_read_stats.tsv
 """
 
 
-def generate_dashboard(per_read_stats_tsv):
+def generate_dashboard(
+    per_read_stats_tsv: str, dashboard_closed_file: str = "dashboard_closed"
+):
+    """Generate an interactive dashboard from a TSV file containing per-read statistics.
+
+    Parameters
+    ----------
+    per_read_stats_tsv : str
+        Path to the TSV file containing per-read statistics.
+    dashboard_closed_file : str, optional
+        Path to the file that will be created when the dashboard is closed, by default 'dashboard_closed'.
+
+    Returns
+    -------
+    None
+    """
 
     app = Dash(__name__)
     df = pd.read_csv(

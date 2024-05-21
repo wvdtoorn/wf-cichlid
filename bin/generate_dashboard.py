@@ -40,7 +40,7 @@ def generate_dashboard(
     df = pd.read_csv(
         per_read_stats_tsv,
         sep="\t",
-        compression="gzip",
+        compression="gzip" if per_read_stats_tsv.endswith(".gz") else None,
     )
 
     # rename columns

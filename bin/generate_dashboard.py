@@ -148,7 +148,7 @@ def generate_dashboard(
             ),
             html.Details(
                 [
-                    html.Summary("Data Table for Selected Samples"),
+                    html.Summary("Data Table for Scatterplot"),
                     dash_table.DataTable(
                         id="filtered-data-table",
                         columns=[{"name": i, "id": i} for i in df.columns],

@@ -63,14 +63,18 @@ def generate_dashboard(
                 ),
                 style={"textAlign": "right"},
             ),
-            html.H3("Overview Table"),
-            dash_table.DataTable(
-                id="overview-table",
-                columns=[{"name": i, "id": i} for i in df.columns],
-                data=df.to_dict("records"),
-                sort_action="native",
-                sort_mode="multi",
-                filter_action="native",  # Enable filtering
+            html.Details(
+                [
+                    html.Summary("Data Table"),
+                    dash_table.DataTable(
+                        id="overview-table",
+                        columns=[{"name": i, "id": i} for i in df.columns],
+                        data=df.to_dict("records"),
+                        sort_action="native",
+                        sort_mode="multi",
+                        filter_action="native",  # Enable filtering
+                    ),
+                ]
             ),
             html.H3("Interactive Analysis"),
             dcc.Dropdown(
@@ -89,13 +93,17 @@ def generate_dashboard(
                     title="Quality Score over Read Length",
                 ),
             ),
-            html.H4("Data Table for Selected Samples"),
-            dash_table.DataTable(
-                id="filtered-data-table",
-                columns=[{"name": i, "id": i} for i in df.columns],
-                data=df.to_dict("records"),  # Initially show all data
-                sort_action="native",
-                sort_mode="multi",
+            html.Details(
+                [
+                    html.Summary("Data Table for Selected Samples"),
+                    dash_table.DataTable(
+                        id="filtered-data-table",
+                        columns=[{"name": i, "id": i} for i in df.columns],
+                        data=df.to_dict("records"),  # Initially show all data
+                        sort_action="native",
+                        sort_mode="multi",
+                    ),
+                ]
             ),
         ]
     )

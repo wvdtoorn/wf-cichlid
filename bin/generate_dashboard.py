@@ -48,6 +48,12 @@ def generate_dashboard(
         columns={"read_length": "Read Length", "mean_quality": "Average QScore"}
     )
 
+    # Create a color map for sample names
+    sample_names = df["sample_name"].unique()
+    colors = px.colors.qualitative.Plotly  # Using Plotly's qualitative color scale
+    color_map = {name: colors[i % len(colors)] for i, name in enumerate(sample_names)}
+
+
     app.layout = html.Div(
         [
             html.Div(
@@ -90,6 +96,7 @@ def generate_dashboard(
                     x="Read Length",
                     y="Average QScore",
                     color="sample_name",
+                    color_discrete_map=color_map,
                     title="Quality Score over Read Length",
                 ),
             ),
@@ -116,6 +123,7 @@ def generate_dashboard(
             x="Read Length",
             y="Average QScore",
             color="sample_name",
+            color_discrete_map=color_map,
             title="Quality Score over Read Length",
             marginal_x="histogram",  # Histogram on x-axis
             marginal_y="histogram",  # Histogram on y-axis

@@ -117,6 +117,8 @@ def generate_dashboard(
             y="Average QScore",
             color="sample_name",
             title="Quality Score over Read Length",
+            marginal_x="histogram",  # Histogram on x-axis
+            marginal_y="histogram",  # Histogram on y-axis
         )
 
     @app.callback(

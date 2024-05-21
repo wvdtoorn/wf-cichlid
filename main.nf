@@ -85,13 +85,11 @@ process output {
 
 
 process plotly {
-    label "wftemplate"
+    //label "wftemplate"
     input:
-        tuple path(fname), val(dirname)
-    output:
-        path fname
+        path "all.stats"
     """
-
+    python /home/dksnka/workspaces/lc2024/wf-cichlid/bin/generate_dashboard.py all.stats
     """
 }
 
@@ -104,12 +102,13 @@ process concatPerReadStats {
         path "per-read-stats_all.tsv"
     """
     # Get header from the first CSV file
-    zcat *_stats.tsv.gz | head -n 1 > per-read-stats_all.tsv
+    ( zcat *_stats.tsv.gz | head -n 1 > per-read-stats_all.tsv ) || true
 
     # Concatenate the rest of the files without their headers
-    zcat *_stats.tsv.gz | tail -q -n +2 >> per-read-stats_all.tsv
+    ( zcat *_stats.tsv.gz | grep -v "read_id" >> per-read-stats_all.tsv ) || true
     """
 }
+
 
 // Creates a new directory named after the sample alias and moves the ingress results
 // into it.
@@ -234,7 +233,7 @@ workflow {
     }
  
     stats_file = samples.map{ meta, reads, stats ->  stats.resolve("per-read-stats.tsv.gz") }
-    stats_file.collect()
+    stats_file = stats_file.collect()
     stats_file.view()
 
 
@@ -267,7 +266,8 @@ workflow {
             pipeline.out.report.concat(pipeline.out.workflow_params)
                 | map { [it, null] })
         | output
-    concatPerReadStats(stats_file)
+    allstats = concatPerReadStats(stats_file)
+    plotly(allstats)
 }
 
 workflow.onComplete {
